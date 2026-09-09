@@ -59,7 +59,7 @@ def verify_password(plain_password, hashed_password):
 
 @app.get("/", response_class=HTMLResponse)
 def read_index(request: Request):
-    return templates.TemplateResponse(request, "index.html", {"request": request})
+    return templates.TemplateResponse(request, "dashboard.html", {"request": request})
 
 
 @app.get("/login", response_class=HTMLResponse)
