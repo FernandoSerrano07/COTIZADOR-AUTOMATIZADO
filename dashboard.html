@@ -1,0 +1,207 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<title>Dashboard - Seguridad Y Redes</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<link rel="stylesheet" href="assets/css/main.css" />
+</head>
+
+<body class="is-preload">
+
+	<div id="wrapper">
+		<div id="main">
+			<div class="inner">
+
+				<header id="header">
+					<a href="/dashboard" class="logo"><strong>Panel de Control</strong> | Seguridad y Redes</a>
+				</header>
+
+				<!-- Sección Única: Generador de Cotizaciones -->
+				<section>
+					<header class="major">
+						<h2>Generador de Cotizaciones</h2>
+					</header>
+
+					<form action="/crear-cotizacion" method="POST" id="quotation-form">
+
+						<h3>Datos del Cliente</h3>
+						<div class="fields">
+							<div class="field gtr-uniform">
+								<label for="client_name">Nombre del Cliente</label>
+								<input type="text" name="client_name" id="client_name" placeholder="Ej. Juan Pérez"
+									required />
+							</div>
+							<div class="field gtr-uniform">
+								<label for="client_phone">Teléfono del Cliente</label>
+								<input type="text" name="client_phone" id="client_phone"
+									placeholder="Ej. +503 6305 5676" />
+							</div>
+							<div class="field gtr-uniform">
+								<label for="client_address">Dirección del Cliente</label>
+								<input type="text" name="client_address" id="client_address"
+									placeholder="Ej. Col. Escalón, San Salvador" required />
+							</div>
+							<div class="field gtr-uniform">
+								<label>Fecha de Emisión</label>
+								<input type="text" id="display_date" disabled style="background: #f4f4f4;" />
+							</div>
+						</div>
+
+						<hr style="margin: 30px 0;" />
+
+						<h3>Productos de la Cotización</h3>
+						<div id="products-container">
+							<div class="product-row"
+								style="display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end;">
+								<div style="flex: 3;">
+									<label>Producto</label>
+									<select name="product_id" class="product-select" required style="width: 100%;">
+										<option value="">-- Seleccione un producto --</option>
+										{% for product in products %}
+										<option value="{{ product.id }}" data-price="{{ product.price }}">{{
+											product.name }} - ${{ "%.2f"|format(product.price) }}</option>
+										{% endfor %}
+									</select>
+								</div>
+								<div style="flex: 1;">
+									<label>Cantidad</label>
+									<input type="number" name="quantity" class="product-qty" min="1" value="1"
+										required />
+								</div>
+								<div style="flex: 0 0 auto;">
+									<button type="button" class="button" onclick="removeRow(this)"
+										style="background: #ff4d4d; color: white; border: none;">X</button>
+								</div>
+							</div>
+						</div>
+
+						<ul class="actions" style="margin-top: 15px;">
+							<li><button type="button" class="button" onclick="addProductRow()">+ Agregar otro
+									producto</button></li>
+						</ul>
+
+						<hr style="margin: 30px 0;" />
+
+						<h3>Opciones de Pago y Totales</h3>
+						<div class="field" style="margin-bottom: 20px;">
+							<input type="checkbox" id="apply_iva" name="apply_iva" value="true"
+								onchange="calculateTotals()">
+							<label for="apply_iva" style="display: inline; cursor: pointer;"><strong>Aplicar IVA
+									(13%)</strong></label>
+						</div>
+
+						<div
+							style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 25px; border: 1px solid #ddd;">
+							<p style="margin: 5px 0;">Subtotal: <strong>$<span id="lbl-subtotal">0.00</span></strong>
+							</p>
+							<p id="iva-container" style="margin: 5px 0; display: none;">IVA (13%): <strong>$<span
+										id="lbl-iva">0.00</span></strong></p>
+							<p style="margin: 5px 0; font-size: 1.2em; color: #2e3842;"><strong>Total a Pagar: $<span
+										id="lbl-total">0.00</span></strong></p>
+						</div>
+
+						<ul class="actions" style="margin-top: 30px;">
+							<li><input type="submit" value="Generar y Guardar Cotización PDF" class="primary" /></li>
+						</ul>
+					</form>
+				</section>
+
+			</div>
+		</div>
+
+		<div id="sidebar">
+			<div class="inner">
+				<nav id="menu">
+					<header class="major">
+						<h2>Menú</h2>
+					</header>
+					<ul>
+						<li><a href="/">Página Principal</a></li>
+						<li><a href="/dashboard">Generador de Cotizaciones</a></li>
+						<li><a href="/productos">Gestión de Productos</a></li>
+						<li><a href="/cotizaciones">ver Cotizaciones</a></li>
+						<li><a href="/configuracion">Configuración de Empresa</a></li>
+						<li><a href="/login">Cerrar Sesión</a></li>
+					</ul>
+				</nav>
+				<footer id="footer">
+					<p class="copyright">&copy; Seguridad y Redes.</p>
+				</footer>
+			</div>
+		</div>
+	</div>
+
+	<script src="assets/js/jquery.min.js"></script>
+	<script src="assets/js/browser.min.js"></script>
+	<script src="assets/js/breakpoints.min.js"></script>
+	<script src="assets/js/util.js"></script>
+	<script src="assets/js/main.js"></script>
+
+	<script>
+		const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+		document.getElementById('display_date').value = new Date().toLocaleDateString('es-SV', options);
+
+		function addProductRow() {
+			const container = document.getElementById('products-container');
+			const firstRow = container.querySelector('.product-row');
+			const newRow = firstRow.cloneNode(true);
+			newRow.querySelector('input[type="number"]').value = '1';
+			newRow.querySelector('select').selectedIndex = 0;
+			container.appendChild(newRow);
+			attachEvents(newRow);
+			calculateTotals();
+		}
+
+		function removeRow(button) {
+			const rows = document.querySelectorAll('.product-row');
+			if (rows.length > 1) {
+				button.closest('.product-row').remove();
+				calculateTotals();
+			} else {
+				alert("Debe incluir al menos un producto en la cotización.");
+			}
+		}
+
+		function calculateTotals() {
+			let subtotal = 0;
+			document.querySelectorAll('.product-row').forEach(row => {
+				const select = row.querySelector('.product-select');
+				const qtyInput = row.querySelector('.product-qty');
+				const selectedOption = select.options[select.selectedIndex];
+
+				if (selectedOption && selectedOption.dataset.price) {
+					const price = parseFloat(selectedOption.dataset.price);
+					const qty = parseInt(qtyInput.value) || 0;
+					subtotal += price * qty;
+				}
+			});
+
+			const applyIva = document.getElementById('apply_iva').checked;
+			let iva = 0;
+			if (applyIva) {
+				iva = subtotal * 0.13;
+				document.getElementById('iva-container').style.display = 'block';
+			} else {
+				document.getElementById('iva-container').style.display = 'none';
+			}
+
+			const total = subtotal + iva;
+
+			document.getElementById('lbl-subtotal').innerText = subtotal.toFixed(2);
+			document.getElementById('lbl-iva').innerText = iva.toFixed(2);
+			document.getElementById('lbl-total').innerText = total.toFixed(2);
+		}
+
+		function attachEvents(row) {
+			row.querySelector('.product-select').addEventListener('change', calculateTotals);
+			row.querySelector('.product-qty').addEventListener('input', calculateTotals);
+		}
+
+		document.querySelectorAll('.product-row').forEach(row => attachEvents(row));
+		document.getElementById('apply_iva').addEventListener('change', calculateTotals);
+	</script>
+</body>
+
+</html>

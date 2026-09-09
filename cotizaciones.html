@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de Cotizaciones</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-light">
+
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-file-invoice-dollar text-primary"></i> Historial de Cotizaciones</h2>
+            <a href="/dashboard" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> Volver al Dashboard</a>
+        </div>
+
+        <!-- Formulario de Búsqueda -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="get" action="/cotizaciones" class="row g-3">
+                    <div class="col-md-5">
+                        <label for="q" class="form-label">Buscar por Cliente</label>
+                        <input type="text" class="form-control" id="q" name="q" value="{{ q }}" placeholder="Nombre del cliente...">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="fecha" class="form-label">Filtrar por Fecha</label>
+                        <input type="date" class="form-control" id="fecha" name="fecha" value="{{ fecha }}">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100 me-2"><i class="fas fa-search"></i> Buscar</button>
+                        <a href="/cotizaciones" class="btn btn-outline-secondary"><i class="fas fa-redo"></i></a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tabla de Resultados -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Cliente</th>
+                                <th>Teléfono</th>
+                                <th>Total</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cot in cotizaciones %}
+                            <tr>
+                                <td>#{{ cot.id }}</td>
+                                <td><strong>{{ cot.client_name }}</strong><br><small class="text-muted">{{ cot.client_address }}</small></td>
+                                <td>{{ cot.client_phone }}</td>
+                                <td><span class="text-success fw-bold">${{ "%.2f"|format(cot.total) }}</span></td>
+                                <td>
+                                    {% if cot.pdf_path %}
+                                    <a href="/{{ cot.pdf_path }}" target="_blank" class="btn btn-sm btn-outline-danger" title="Ver PDF">
+                                        <i class="fas fa-file-pdf"></i> PDF
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted small">No disponible</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No se encontraron cotizaciones registradas.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Configuración de Empresa - Sistema</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+	</head>
+	<body class="is-preload">
+
+
+		<div id="wrapper">
+			<div id="main">
+				<div class="inner">
+
+
+					<header id="header">
+						<a href="/dashboard" class="logo"><strong>Configuración</strong> | Panel de Empresa</a>
+					</header>
+
+
+					<section>
+						<header class="major">
+							<h2>Datos Generales y Términos de Cotización</h2>
+						</header>
+						
+						<p>Personaliza la información, logotipo y las condiciones predeterminadas que aparecerán en el PDF de tus cotizaciones.</p>
+
+
+						<form action="/actualizar-empresa" method="POST" enctype="multipart/form-data">
+							<div class="fields">
+								<div class="field gtr-uniform">
+									<label for="company_name">Nombre de la Empresa</label>
+									<input type="text" name="company_name" id="company_name" value="{{ config.name }}" placeholder="Ej. Soluciones Tecnológicas S.A." required />
+								</div>
+								<div class="field gtr-uniform">
+									<label for="company_phone">Teléfono de la Empresa</label>
+									<input type="text" name="company_phone" id="company_phone" value="{{ config.phone }}" placeholder="Ej. +503 2222-3333" required />
+								</div>
+								<div class="field gtr-uniform">
+									<label for="company_address">Dirección de la Empresa</label>
+									<input type="text" name="company_address" id="company_address" value="{{ config.address }}" placeholder="Ej. San Salvador, El Salvador" required />
+								</div>
+
+								<hr class="major" style="margin: 30px 0;" />
+
+								<!-- Control de Correlativo y Condiciones -->
+								<header class="major" style="margin-bottom: 20px;">
+									<h3>Configuración de Cotizaciones y Formato PDF</h3>
+								</header>
+
+								<div class="field gtr-uniform">
+									<label for="next_cotizacion_num">Número de Siguiente Cotización (Correlativo inicial)</label>
+									<input type="text" name="next_cotizacion_num" id="next_cotizacion_num" value="{{ config.next_cotizacion_num or 'COT-2026-001' }}" placeholder="Ej. COT-2026-001" required />
+									<small style="color: #666; display: block; margin-top: 5px;">El sistema asignará este número a la próxima cotización y avanzará automáticamente.</small>
+								</div>
+
+								<div class="field gtr-uniform">
+									<label for="validez_oferta">Validez de la Oferta por Defecto</label>
+									<input type="text" name="validez_oferta" id="validez_oferta" value="{{ config.validez_oferta or '5 días hábiles' }}" placeholder="Ej. 5 días hábiles" />
+								</div>
+
+								<div class="field gtr-uniform">
+									<label for="condiciones_pago">Condiciones de Pago</label>
+									<input type="text" name="condiciones_pago" id="condiciones_pago" value="{{ config.condiciones_pago or '50% de anticipo al confirmar la orden y 50% contra entrega.' }}" placeholder="Ej. 50% anticipo y 50% contra entrega" />
+								</div>
+
+								<div class="field gtr-uniform">
+									<label for="instalacion_nota">Nota de Instalación / Puesta en Marcha</label>
+									<input type="text" name="instalacion_nota" id="instalacion_nota" value="{{ config.instalacion_nota or 'Incluye la puesta en marcha del sistema y configuración.' }}" placeholder="Detalle de instalación" />
+								</div>
+
+								<div class="field gtr-uniform">
+									<label for="garantias_texto">Opciones de Garantía (Puedes escribir varias separadas por líneas)</label>
+									<textarea name="garantias_texto" id="garantias_texto" rows="4" placeholder="Ej. 
+- 1 año de garantía en equipos. La garantía no cubre cables cortados.
+- 30 días de garantía en servicios de configuración.">{{ config.garantias_texto or '- Los equipos cuentan con 1 año de garantía.\n- La garantía no cubre equipos con daños físicos o mal uso.' }}</textarea>
+								</div>
+
+								<div class="field gtr-uniform" style="margin-top: 20px;">
+									<label for="company_logo">Logotipo de la Empresa (PNG, JPG)</label>
+									<input type="file" name="company_logo" id="company_logo" accept="image/*" />
+									<small style="color: #666; display: block; margin-top: 5px;">Deja este campo vacío si no deseas cambiar el logo actual.</small>
+								</div>
+							</div>
+
+
+							<ul class="actions" style="margin-top: 25px;">
+								<li><input type="submit" value="Guardar Cambios de la Empresa" class="primary" /></li>
+							</ul>
+						</form>
+					</section>
+
+
+				</div>
+			</div>
+
+
+			<div id="sidebar">
+				<div class="inner">
+					<nav id="menu">
+						<header class="major">
+							<h2>Menú</h2>
+						</header>
+						<ul>
+							<li><a href="/">Página Principal</a></li>
+							<li><a href="/dashboard">Generador de Cotizaciones</a></li>
+							<li><a href="/productos">Gestión de Productos</a></li>
+							<li><a href="/cotizaciones">ver Cotizaciones</a></li>
+							<li><a href="/configuracion">Configuración de Empresa</a></li>
+							<li><a href="/login">Cerrar Sesión</a></li>
+						</ul>
+					</nav>
+					<footer id="footer">
+						<p class="copyright">&copy; Sistema de Cotizaciones.</p>
+					</footer>
+				</div>
+			</div>
+		</div>
+
+
+		<script src="assets/js/jquery.min.js"></script>
+		<script src="assets/js/browser.min.js"></script>
+		<script src="assets/js/breakpoints.min.js"></script>
+		<script src="assets/js/util.js"></script>
+		<script src="assets/js/main.js"></script>
+	</body>
+</html>
