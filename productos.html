@@ -7,6 +7,63 @@
 		<link rel="stylesheet" href="assets/css/main.css" />
 		<style>
 			.congelado { opacity: 0.5; background-color: #f9f9f9; }
+
+
+			/* Estilos adaptativos optimizados para pantallas móviles */
+			@media screen and (max-width: 736px) {
+				.table-wrapper {
+					overflow-x: visible;
+				}
+				#tablaProductos, #tablaProductos tbody, #tablaProductos tr, #tablaProductos td {
+					display: block;
+					width: 100%;
+				}
+				#tablaProductos thead {
+					display: none;
+				}
+				#tablaProductos tr.product-row {
+					margin-bottom: 25px;
+					border: 1px solid #ddd;
+					padding: 15px;
+					background: #fff;
+					box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+				}
+				#tablaProductos td {
+					display: flex;
+					flex-direction: column;
+					padding: 8px 0 !important;
+					border: none !important;
+					text-align: left !important;
+				}
+				#tablaProductos td::before {
+					content: attr(data-label);
+					font-weight: bold;
+					font-size: 0.8em;
+					color: #555;
+					margin-bottom: 4px;
+					text-transform: uppercase;
+				}
+				/* Diseño flexible y apilado dentro de los campos de edición para móviles */
+				#tablaProductos .product-edit-fields {
+					flex-direction: column !important;
+					align-items: stretch !important;
+					gap: 12px !important;
+				}
+				#tablaProductos .product-edit-fields > div {
+					width: 100% !important;
+					flex: none !important;
+				}
+				#tablaProductos input[type="text"], 
+				#tablaProductos input[type="number"] {
+					width: 100% !important;
+					box-sizing: border-box !important;
+				}
+				#tablaProductos .button {
+					width: 100% !important;
+					text-align: center;
+					margin-top: 5px;
+				}
+			}
 		</style>
 	</head>
 	<body class="is-preload">
@@ -49,16 +106,18 @@
 					<hr class="major" />
 
 
-					<!-- Tabla de Productos Actuales (Edición directa, estado y buscador corregido) -->
+					<!-- Tabla de Productos Actuales -->
 					<section>
 						<header class="major">
 							<h2>Listado y Edición de Productos</h2>
 						</header>
 
+
 						<!-- Buscador en vivo -->
 						<div class="field" style="margin-bottom: 20px;">
 							<input type="text" id="buscadorProductos" placeholder="Buscar producto por nombre o descripción..." style="background-color: #fff;" />
 						</div>
+
 
 						<div class="table-wrapper">
 							<table id="tablaProductos">
@@ -73,17 +132,17 @@
 								<tbody>
 									{% for p in products %}
 									<tr class="product-row {% if not p.is_active %}congelado{% endif %}">
-										<td>{{ p.id }}</td>
-										<td>
+										<td data-label="ID">{{ p.id }}</td>
+										<td data-label="Detalles del Producto">
 											<!-- Formulario integrado en la fila para editar al instante -->
 											<form action="/productos/editar/{{ p.id }}" method="POST" style="margin: 0;">
-												<div class="fields" style="display: flex; gap: 10px; align-items: center;">
+												<div class="fields product-edit-fields" style="display: flex; gap: 10px; align-items: center;">
 													<div style="flex: 2;">
-														<input type="text" name="name" value="{{ p.name }}" required style="margin-bottom: 5px;" />
+														<input type="text" name="name" value="{{ p.name }}" required style="margin-bottom: 5px;" placeholder="Nombre del producto" />
 														<input type="text" name="description" value="{{ p.description or '' }}" placeholder="Descripción" style="font-size: 0.85em;" />
 													</div>
 													<div style="flex: 1;">
-														<input type="number" step="0.01" name="price" value="{{ p.price }}" required />
+														<input type="number" step="0.01" name="price" value="{{ p.price }}" required placeholder="Precio" />
 													</div>
 													<div>
 														<input type="submit" value="Actualizar" class="button small primary" />
@@ -91,14 +150,14 @@
 												</div>
 											</form>
 										</td>
-										<td>
+										<td data-label="Estado">
 											{% if p.is_active %}
 												<span style="color: green; font-weight: bold;">Activo</span>
 											{% else %}
 												<span style="color: orange; font-weight: bold;">Congelado</span>
 											{% endif %}
 										</td>
-										<td>
+										<td data-label="Acciones">
 											<a href="/productos/toggle/{{ p.id }}" class="button small {% if p.is_active %}alt{% else %}primary{% endif %}">
 												{% if p.is_active %}Congelar{% else %}Activar{% endif %}
 											</a>
@@ -123,6 +182,7 @@
 							<h2>Menú</h2>
 						</header>
 						<ul>
+							<li><a href="/">Página Principal</a></li>
 							<li><a href="/dashboard">Generador de Cotizaciones</a></li>
 							<li><a href="/productos">Gestión de Productos</a></li>
 							<li><a href="/cotizaciones">ver Cotizaciones</a></li>
@@ -144,7 +204,8 @@
 		<script src="assets/js/util.js"></script>
 		<script src="assets/js/main.js"></script>
 
-		<!-- Script corregido para leer los valores dentro de los inputs -->
+
+		<!-- Script para leer los valores dentro de los inputs -->
 		<script>
 			$(document).ready(function(){
 				$("#buscadorProductos").on("keyup", function() {
