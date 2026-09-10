@@ -5,33 +5,111 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 		<link rel="stylesheet" href="assets/css/main.css" />
+		<style>
+			/* Optimizaciones visuales exclusivas para el Login */
+			#wrapper {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 100vh;
+				background: linear-gradient(135deg, rgba(0,0,0,0.03) 0%, rgba(0,0,0,0.08) 100%);
+			}
+			.login-box {
+				background: #ffffff;
+				padding: 3.5em 3em;
+				border-radius: 12px;
+				box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+				max-width: 450px;
+				width: 100%;
+			}
+			.login-box header.major {
+				text-align: center;
+				border-bottom: none;
+				margin-bottom: 2em;
+			}
+			.login-box header.major h2 {
+				font-weight: 700;
+				margin-bottom: 0.2em;
+				letter-spacing: -0.02em;
+			}
+			.login-box header.major p {
+				color: #666;
+				font-size: 0.95em;
+				margin: 0;
+			}
+			.login-box input[type="text"],
+			.login-box input[type="password"] {
+				border-radius: 8px;
+				background-color: #fcfcfc;
+				border: 1px solid #e5e5e5;
+				padding: 0.9em 1em;
+				transition: all 0.3s ease;
+			}
+			.login-box input[type="text"]:focus,
+			.login-box input[type="password"]:focus {
+				background-color: #ffffff;
+				border-color: inherit;
+				box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+			}
+			.login-box .actions {
+				display: flex;
+				gap: 15px;
+				margin-top: 2em;
+				padding: 0;
+			}
+			.login-box .actions li {
+				width: 100%;
+				padding: 0;
+			}
+			.login-box .actions input[type="submit"],
+			.login-box .actions .button {
+				width: 100%;
+				text-align: center;
+				border-radius: 8px;
+				font-weight: 600;
+				letter-spacing: 0.05em;
+			}
+			
+			/* Adaptación para móviles */
+			@media screen and (max-width: 480px) {
+				.login-box {
+					padding: 2.5em 1.5em;
+					box-shadow: none;
+					background: transparent;
+				}
+				#wrapper {
+					background: #ffffff;
+				}
+				.login-box .actions {
+					flex-direction: column;
+				}
+			}
+		</style>
 	</head>
 	<body class="is-preload">
 		<div id="wrapper">
-			<section id="main" class="wrapper style1">
-				<div class="container">
-					<header class="major">
-						<h2>Acceso de Usuarios</h2>
-						<p>Sistema rápido de cotizaciones</p>
-					</header>
-					<form method="post" action="/login">
-						<div class="row gtr-uniform">
-							<div class="col-12">
-								<input type="text" name="username" placeholder="Usuario" required />
-							</div>
-							<div class="col-12">
-								<input type="password" name="password" placeholder="Contraseña" required />
-							</div>
-							<div class="col-12">
-								<ul class="actions">
-									<li><input type="submit" value="Entrar" class="primary" /></li>
-									<li><a href="/" class="button">Regresar</a></li>
-								</ul>
-							</div>
+			<div class="login-box">
+				<header class="major">
+					<h2>Acceso de Usuarios</h2>
+					<p>Sistema rápido de cotizaciones</p>
+				</header>
+				<form method="post" action="/login">
+					<div class="row gtr-uniform">
+						<div class="col-12">
+							<input type="text" name="username" placeholder="Usuario" required />
 						</div>
-					</form>
-				</div>
-			</section>
+						<div class="col-12">
+							<input type="password" name="password" placeholder="Contraseña" required />
+						</div>
+						<div class="col-12">
+							<ul class="actions">
+								<li><input type="submit" value="Entrar" class="primary" /></li>
+								<li><a href="/" class="button">Regresar</a></li>
+							</ul>
+						</div>
+					</div>
+				</form>
+			</div>
 		</div>
 		<script src="assets/js/jquery.min.js"></script>
 		<script src="assets/js/main.js"></script>
