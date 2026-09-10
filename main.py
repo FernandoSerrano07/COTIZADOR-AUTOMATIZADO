@@ -15,27 +15,25 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import datetime
 
-
 models.Base.metadata.create_all(bind=engine)
 
-
 app = FastAPI()
-
 
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 os.makedirs("pdf_files", exist_ok=True)
 os.makedirs("uploads", exist_ok=True)
 app.mount("/pdf_files", StaticFiles(directory="pdf_files"), name="pdf_files")
 
-
 templates = Jinja2Templates(directory=".")
 
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+pwd_context = CryptContext(
+    schemes=["bcrypt"], 
+    deprecated="auto",
+    bcrypt__default_rounds=12,
+    bcrypt__truncate_error=False
+)
 
 CONFIG_FILE = "company_config.json"
-
 
 def get_company_config():
     if os.path.exists(CONFIG_FILE):
@@ -52,20 +50,16 @@ def get_company_config():
         "garantias_texto": "- Los equipos cuentan con 1 año de garantía. La garantía no cubre cables cortados ni equipos sucios por falta de mantenimiento."
     }
 
-
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-
 @app.get("/", response_class=HTMLResponse)
 def read_index(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"request": request})
-
+    return templates.TemplateResponse(request, "dashboard.html", {"request": request})
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse(request, "login.html", {"request": request})
-
 
 @app.post("/login")
 def login(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
@@ -74,18 +68,15 @@ def login(username: str = Form(...), password: str = Form(...), db: Session = De
         raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
     return RedirectResponse(url="/dashboard", status_code=303)
 
-
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page(request: Request, db: Session = Depends(get_db)):
     products = db.query(models.Product).filter(models.Product.is_active == True).all()
     return templates.TemplateResponse(request, "dashboard.html", {"request": request, "products": products})
 
-
 @app.get("/configuracion", response_class=HTMLResponse)
 def configuracion_page(request: Request):
     config = get_company_config()
     return templates.TemplateResponse(request, "configuracion.html", {"request": request, "config": config})
-
 
 @app.post("/actualizar-empresa")
 async def actualizar_empresa(
@@ -122,15 +113,12 @@ async def actualizar_empresa(
             
     return RedirectResponse(url="/configuracion", status_code=303)
 
-
 # --- RUTAS DE GESTIÓN DE PRODUCTOS ---
-
 
 @app.get("/productos", response_class=HTMLResponse)
 def productos_page(request: Request, db: Session = Depends(get_db)):
     products = db.query(models.Product).all()
     return templates.TemplateResponse(request, "productos.html", {"request": request, "products": products})
-
 
 @app.post("/productos/crear")
 def crear_producto(
@@ -143,7 +131,6 @@ def crear_producto(
     db.add(nuevo_prod)
     db.commit()
     return RedirectResponse(url="/productos", status_code=303)
-
 
 @app.post("/productos/editar/{product_id}")
 def editar_producto(
@@ -161,7 +148,6 @@ def editar_producto(
         db.commit()
     return RedirectResponse(url="/productos", status_code=303)
 
-
 @app.get("/productos/toggle/{product_id}")
 def toggle_producto(product_id: int, db: Session = Depends(get_db)):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
@@ -169,7 +155,6 @@ def toggle_producto(product_id: int, db: Session = Depends(get_db)):
         product.is_active = not product.is_active
         db.commit()
     return RedirectResponse(url="/productos", status_code=303)
-
 
 # --- RUTA DE HISTORIAL DE COTIZACIONES ---
 
@@ -197,9 +182,7 @@ def listar_cotizaciones(
         "fecha": fecha or ""
     })
 
-
 # ------------------------------------
-
 
 @app.post("/crear-cotizacion")
 def crear_cotizacion(
@@ -215,7 +198,6 @@ def crear_cotizacion(
     subtotal_general = 0.0
     items_data = []
 
-
     for p_id, qty in zip(product_id, quantity):
         product = db.query(models.Product).filter(models.Product.id == p_id).first()
         if product:
@@ -229,10 +211,8 @@ def crear_cotizacion(
                 "description": product.description
             })
 
-
     iva_amount = subtotal_general * 0.13 if apply_iva else 0.0
     total_general = subtotal_general + iva_amount
-
 
     comp_config = get_company_config()
     current_cot_num = comp_config.get("next_cotizacion_num", "COT-2026-001")
@@ -250,7 +230,6 @@ def crear_cotizacion(
     except Exception:
         pass
 
-
     nueva_cotizacion = models.Quotations(
         client_name=client_name,
         client_phone=client_phone if client_phone else "N/A",
@@ -264,7 +243,6 @@ def crear_cotizacion(
     db.commit()
     db.refresh(nueva_cotizacion)
 
-
     for item in items_data:
         prod_obj = db.query(models.Product).filter(models.Product.name == item["name"]).first()
         nuevo_item = models.QuotationItem(
@@ -276,16 +254,13 @@ def crear_cotizacion(
         db.add(nuevo_item)
     db.commit()
 
-
     pdf_dir = "pdf_files"
     filename = f"cotizacion_{nueva_cotizacion.id}_{client_name.replace(' ', '_')}.pdf"
     filepath = os.path.join(pdf_dir, filename)
 
-
     doc = SimpleDocTemplate(filepath, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     elements = []
     styles = getSampleStyleSheet()
-
 
     title_style = ParagraphStyle(
         'DocTitle',
@@ -306,7 +281,6 @@ def crear_cotizacion(
         textColor=colors.HexColor("#0056b3")
     )
 
-
     cell_style = ParagraphStyle(
         'CellText',
         parent=styles['Normal'],
@@ -314,7 +288,6 @@ def crear_cotizacion(
         fontSize=9,
         leading=12
     )
-
 
     # 1. ENCABEZADO CON LOGOTIPO AJUSTADO Y PROPORCIONAL
     logo_path = os.path.join("uploads", "company_logo.png")
@@ -332,7 +305,6 @@ def crear_cotizacion(
             logo.drawHeight = max_size
             logo.drawWidth = max_size * (orig_w / orig_h)
 
-
         company_text = Paragraph(f"<b>{comp_config['name']}</b><br/><font size=8 color='#555555'>{comp_config['address']} &bull; Tel: {comp_config['phone']}</font>", cell_style)
         
         left_header_table = Table([[logo, company_text]], colWidths=[logo.drawWidth + 10, 322 - logo.drawWidth])
@@ -347,9 +319,7 @@ def crear_cotizacion(
     else:
         company_col = Paragraph(f"<b>{comp_config['name']}</b><br/><font size=8 color='#555555'>{comp_config['address']} &bull; Tel: {comp_config['phone']}</font>", title_style)
 
-
     cot_title_html = f"<b>COTIZACIÓN</b><br/><font size=10 color='#444444'>N° {current_cot_num}</font>"
-
 
     header_table = Table([
         [company_col, Paragraph(cot_title_html, subtitle_style)]
@@ -364,11 +334,9 @@ def crear_cotizacion(
     elements.append(header_table)
     elements.append(Spacer(1, 10))
 
-
-    # 2. BLOQUES DE CLIENTE Y DETALLES DE OFERTA (CORREGIDO EL CIERRE DE LLAVES)
+    # 2. BLOQUES DE CLIENTE Y DETALLES DE OFERTA
     cliente_info = f"<b>CLIENTE</b><br/><br/><b>Nombre:</b> {client_name}<br/><b>Teléfono:</b> {client_phone if client_phone else 'N/A'}<br/><b>Ubicación:</b> {client_address}"
     oferta_info = f"<b>DETALLES DE OFERTA</b><br/><br/><b>Fecha de Emisión:</b> {datetime.datetime.now().strftime('%d/%m/%Y')}<br/><b>Validez de Oferta:</b> {comp_config.get('validez_oferta', '5 días')}"
-
 
     info_table = Table([
         [Paragraph(cliente_info, cell_style), Paragraph(oferta_info, cell_style)]
@@ -387,7 +355,6 @@ def crear_cotizacion(
     elements.append(info_table)
     elements.append(Spacer(1, 15))
 
-
     # 3. TABLA DE PRODUCTOS / SERVICIOS
     table_data = [["CANT.", "DESCRIPCIÓN DEL PRODUCTO / SERVICIO", "P. UNITARIO", "TOTAL"]]
     for item in items_data:
@@ -401,7 +368,6 @@ def crear_cotizacion(
             f"${item['price']:.2f}",
             f"${item['subtotal']:.2f}"
         ])
-
 
     t = Table(table_data, colWidths=[40, 332, 85, 85])
     t.setStyle(TableStyle([
@@ -418,7 +384,6 @@ def crear_cotizacion(
     ]))
     elements.append(t)
 
-
     # 4. TOTALES
     totales_data = [
         ["", "", "Subtotal:", f"${subtotal_general:.2f}"]
@@ -427,7 +392,6 @@ def crear_cotizacion(
         totales_data.append(["", "", "IVA (13%):", f"${iva_amount:.2f}"])
     
     totales_data.append(["", "", "Total a Pagar:", f"${total_general:.2f}"])
-
 
     t_totales = Table(totales_data, colWidths=[40, 332, 85, 85])
     t_totales.setStyle(TableStyle([
@@ -443,16 +407,13 @@ def crear_cotizacion(
     elements.append(t_totales)
     elements.append(Spacer(1, 20))
 
-
     # 5. TÉRMINOS, CONDICIONES Y GARANTÍAS
     cond_pago = comp_config.get('condiciones_pago', '')
     validez = comp_config.get('validez_oferta', '')
     garantias = comp_config.get('garantias_texto', '')
     instalacion = comp_config.get('instalacion_nota', '')
 
-
     garantias_formatted = garantias.replace('\n', '<br/>&bull; ')
-
 
     terms_html = f"""
     <b>TÉRMINOS, CONDICIONES Y FORMAS DE PAGO</b><br/><br/>
@@ -461,7 +422,6 @@ def crear_cotizacion(
     &bull; <b>Garantía:</b> {garantias_formatted}<br/>
     &bull; <b>Instalación:</b> {instalacion}
     """
-
 
     terms_table = Table([[Paragraph(terms_html, cell_style)]], colWidths=[542])
     terms_table.setStyle(TableStyle([
@@ -474,12 +434,9 @@ def crear_cotizacion(
     ]))
     elements.append(terms_table)
 
-
     doc.build(elements)
-
 
     nueva_cotizacion.pdf_path = filepath
     db.commit()
-
 
     return FileResponse(filepath, media_type='application/pdf', filename=filename)
