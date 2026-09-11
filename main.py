@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from google import genai
+from google.genai import types
 from database import engine, get_db
 import models
 import os
@@ -191,7 +192,11 @@ def listar_cotizaciones(
         "fecha": fecha or ""
     })
 
-# --- ENDPOINT DEL ASISTENTE VIRTUAL IA ---
+# --- ASISTENTE VIRTUAL IA CON FUNCTION CALLING ---
+
+def agregar_producto_cotizacion(product_id: int, quantity: int):
+    """Agrega un producto del catálogo a la cotización activa seleccionando su ID y cantidad."""
+    return {"product_id": product_id, "quantity": quantity}
 
 @app.post("/api/asistente")
 async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
@@ -204,7 +209,8 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
         Aquí tienes el catálogo actual de productos registrados en la base de datos:
         {catalogo_info}
 
-        Responde de forma clara, directa y servicial a las consultas del usuario sobre precios, búsqueda de artículos o control de inventario basados estrictamente en la información proporcionada.
+        Si el usuario te pide agregar, incluir o sumar un producto a la cotización, DEBES utilizar obligatoriamente la herramienta 'agregar_producto_cotizacion' pasando el ID correcto del producto y la cantidad solicitada (si no especifica cantidad, asume 1).
+        Si solo pregunta precios o información, responde amablemente con texto.
         """
 
         max_intentos = 2
@@ -213,7 +219,11 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
             try:
                 response = client.models.generate_content(
                     model='gemini-3.6-flash',
-                    contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}"
+                    contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}",
+                    config=types.GenerateContentConfig(
+                        tools=[agregar_producto_cotizacion],
+                        temperature=0.0
+                    )
                 )
                 break
             except Exception as api_err:
@@ -221,6 +231,24 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
                     time.sleep(1)
                     continue
                 raise api_err
+
+        # Verificamos si la IA ejecutó la función de agregar producto
+        if response.function_calls:
+            for function_call in response.function_calls:
+                if function_call.name == "agregar_producto_cotizacion":
+                    args = function_call.args
+                    p_id = args.get('product_id')
+                    qty = args.get('quantity', 1)
+                    
+                    prod_obj = db.query(models.Product).filter(models.Product.id == p_id).first()
+                    nombre_prod = prod_obj.name if prod_obj else f"ID {p_id}"
+
+                    return {
+                        "reply": f"¡Claro que sí! He agregado {qty} unidad(es) de **{nombre_prod}** a tu formato de cotización.",
+                        "action": "add_product",
+                        "product_id": p_id,
+                        "quantity": qty
+                    }
 
         return {"reply": response.text}
     
