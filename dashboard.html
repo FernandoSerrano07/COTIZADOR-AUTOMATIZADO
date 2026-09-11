@@ -1,7 +1,6 @@
 <!DOCTYPE HTML>
 <html>
 
-
 <head>
 	<title>Dashboard - Seguridad Y Redes</title>
 	<meta charset="utf-8" />
@@ -113,19 +112,15 @@
 	</style>
 </head>
 
-
 <body class="is-preload">
-
 
 	<div id="wrapper">
 		<div id="main">
 			<div class="inner">
 
-
 				<header id="header">
 					<a href="/dashboard" class="logo"><strong>Panel de Control</strong> | Seguridad y Redes</a>
 				</header>
-
 
 				<!-- Sección Única: Generador de Cotizaciones -->
 				<section>
@@ -133,9 +128,7 @@
 						<h2>Generador de Cotizaciones</h2>
 					</header>
 
-
 					<form action="/crear-cotizacion" method="POST" id="quotation-form">
-
 
 						<h3>Datos del Cliente</h3>
 						<div class="fields">
@@ -160,9 +153,7 @@
 							</div>
 						</div>
 
-
 						<hr style="margin: 30px 0;" />
-
 
 						<h3>Productos de la Cotización</h3>
 						<div id="products-container">
@@ -190,15 +181,12 @@
 							</div>
 						</div>
 
-
 						<ul class="actions" style="margin-top: 15px;">
 							<li><button type="button" class="button" onclick="addProductRow()">+ Agregar otro
 									producto</button></li>
 						</ul>
 
-
 						<hr style="margin: 30px 0;" />
-
 
 						<h3>Opciones de Pago y Totales</h3>
 						<div class="field" style="margin-bottom: 20px;">
@@ -207,7 +195,6 @@
 							<label for="apply_iva" style="display: inline; cursor: pointer;"><strong>Aplicar IVA
 									(13%)</strong></label>
 						</div>
-
 
 						<div
 							style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 25px; border: 1px solid #ddd;">
@@ -219,17 +206,14 @@
 										id="lbl-total">0.00</span></strong></p>
 						</div>
 
-
 						<ul class="actions" style="margin-top: 30px;">
 							<li><input type="submit" value="Generar y Guardar Cotización PDF" class="primary" /></li>
 						</ul>
 					</form>
 				</section>
 
-
 			</div>
 		</div>
-
 
 		<div id="sidebar">
 			<div class="inner">
@@ -253,7 +237,6 @@
 		</div>
 	</div>
 
-
 	<!-- Widget de Chat Flotante del Asistente -->
 	<div id="chat-widget-container">
 		<div id="chat-box">
@@ -272,18 +255,15 @@
 		<button id="chat-toggle-btn" onclick="toggleChat()">💬 Asistente IA</button>
 	</div>
 
-
 	<script src="assets/js/jquery.min.js"></script>
 	<script src="assets/js/browser.min.js"></script>
 	<script src="assets/js/breakpoints.min.js"></script>
 	<script src="assets/js/util.js"></script>
 	<script src="assets/js/main.js"></script>
 
-
 	<script>
 		const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
 		document.getElementById('display_date').value = new Date().toLocaleDateString('es-SV', options);
-
 
 		function addProductRow() {
 			const container = document.getElementById('products-container');
@@ -296,7 +276,6 @@
 			calculateTotals();
 		}
 
-
 		function removeRow(button) {
 			const rows = document.querySelectorAll('.product-row');
 			if (rows.length > 1) {
@@ -307,7 +286,6 @@
 			}
 		}
 
-
 		function calculateTotals() {
 			let subtotal = 0;
 			document.querySelectorAll('.product-row').forEach(row => {
@@ -315,14 +293,12 @@
 				const qtyInput = row.querySelector('.product-qty');
 				const selectedOption = select.options[select.selectedIndex];
 
-
 				if (selectedOption && selectedOption.dataset.price) {
 					const price = parseFloat(selectedOption.dataset.price);
 					const qty = parseInt(qtyInput.value) || 0;
 					subtotal += price * qty;
 				}
 			});
-
 
 			const applyIva = document.getElementById('apply_iva').checked;
 			let iva = 0;
@@ -333,25 +309,20 @@
 				document.getElementById('iva-container').style.display = 'none';
 			}
 
-
 			const total = subtotal + iva;
-
 
 			document.getElementById('lbl-subtotal').innerText = subtotal.toFixed(2);
 			document.getElementById('lbl-iva').innerText = iva.toFixed(2);
 			document.getElementById('lbl-total').innerText = total.toFixed(2);
 		}
 
-
 		function attachEvents(row) {
 			row.querySelector('.product-select').addEventListener('change', calculateTotals);
 			row.querySelector('.product-qty').addEventListener('input', calculateTotals);
 		}
 
-
 		document.querySelectorAll('.product-row').forEach(row => attachEvents(row));
 		document.getElementById('apply_iva').addEventListener('change', calculateTotals);
-
 
 		// Funciones del Chat Bot
 		function toggleChat() {
@@ -359,25 +330,21 @@
 			box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
 		}
 
-
 		function handleKeyPress(e) {
 			if (e.key === 'Enter') {
 				sendMessage();
 			}
 		}
 
-
 		async function sendMessage() {
 			const input = document.getElementById('chat-input');
 			const text = input.value.trim();
 			if (!text) return;
 
-
 			const messagesContainer = document.getElementById('chat-messages');
 			messagesContainer.innerHTML += `<div class="chat-msg user">${text}</div>`;
 			input.value = '';
 			messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
 
 			try {
 				const response = await fetch('/api/asistente', {
@@ -387,31 +354,55 @@
 				});
 				const data = await response.json();
 				
-				// Mostramos la respuesta de texto del asistente
-				messagesContainer.innerHTML += `<div class="chat-msg assistant">${data.reply}</div>`;
+				const replyText = data.reply || data.message || "";
+				messagesContainer.innerHTML += `<div class="chat-msg assistant">${replyText}</div>`;
 				messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-				// Si el backend devolvió la orden de agregar el producto, lo aplicamos en la interfaz
-				if (data.action === "add_product") {
-					// Verificamos si la primera fila está libre o si debemos crear una nueva
-					const firstSelect = document.querySelector('.product-select');
-					const firstQty = document.querySelector('.product-qty');
+				// Extraer ID y Cantidad (ya sea de los datos del backend o por Regex desde el texto)
+				let productId = data.product_id;
+				let quantity = data.quantity;
 
-					if (firstSelect && firstSelect.value === "") {
-						// Si la primera fila está vacía, la usamos directamente
-						firstSelect.value = data.product_id;
-						firstQty.value = data.quantity;
-					} else {
-						// Si ya está ocupada, añadimos una fila nueva automáticamente
-						addProductRow();
-						const rows = document.querySelectorAll('.product-row');
-						const lastRow = rows[rows.length - 1];
-						lastRow.querySelector('.product-select').value = data.product_id;
-						lastRow.querySelector('.product-qty').value = data.quantity;
+				if (!productId && replyText) {
+					// Detecta patrones como "(ID: 3)" o "ID: 3" en el mensaje del bot
+					const idMatch = replyText.match(/\(ID:\s*(\d+)\)/i) || replyText.match(/ID:\s*(\d+)/i);
+					if (idMatch) {
+						productId = idMatch[1];
 					}
 					
-					// Recalculamos los totales del formulario al instante
-					calculateTotals();
+					// Detecta la cantidad indicada en el texto (ej. "1 unidad")
+					const qtyMatch = replyText.match(/agregado\s+(\d+)\s+unidad/i) || replyText.match(/(\d+)\s+unidad/i);
+					if (qtyMatch) {
+						quantity = parseInt(qtyMatch[1]);
+					}
+				}
+
+				if (!quantity) quantity = 1;
+
+				// Si se detectó un ID de producto, se aplica al formulario
+				if (productId) {
+					const rows = document.querySelectorAll('.product-row');
+					let targetRow = null;
+
+					const firstSelect = rows[0].querySelector('.product-select');
+					if (firstSelect && (firstSelect.value === "" || firstSelect.value === null)) {
+						targetRow = rows[0];
+					} else {
+						addProductRow();
+						const updatedRows = document.querySelectorAll('.product-row');
+						targetRow = updatedRows[updatedRows.length - 1];
+					}
+
+					if (targetRow) {
+						const selectElem = targetRow.querySelector('.product-select');
+						const qtyElem = targetRow.querySelector('.product-qty');
+						
+						selectElem.value = productId;
+						qtyElem.value = quantity;
+
+						// Disparar evento de cambio y recalcular totales
+						selectElem.dispatchEvent(new Event('change'));
+						calculateTotals();
+					}
 				}
 
 			} catch (err) {
@@ -420,6 +411,5 @@
 		}
 	</script>
 </body>
-
 
 </html>
