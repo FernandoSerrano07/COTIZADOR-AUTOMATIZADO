@@ -11,6 +11,7 @@ import models
 import os
 import shutil
 import json
+import time
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -206,14 +207,26 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
         Responde de forma clara, directa y servicial a las consultas del usuario sobre precios, búsqueda de artículos o control de inventario basados estrictamente en la información proporcionada.
         """
 
-        response = client.models.generate_content(
-            model='gemini-3.6-flash',
-            contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}"
-        )
+        max_intentos = 2
+        response = None
+        for intento in range(max_intentos):
+            try:
+                response = client.models.generate_content(
+                    model='gemini-3.6-flash',
+                    contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}"
+                )
+                break
+            except Exception as api_err:
+                if "503" in str(api_err) and intento < max_intentos - 1:
+                    time.sleep(1)
+                    continue
+                raise api_err
 
         return {"reply": response.text}
     
     except Exception as e:
+        if "503" in str(e) or "UNAVAILABLE" in str(e):
+            return {"reply": "El asistente está experimentando alta demanda en este momento. Por favor, intenta de nuevo en unos segundos."}
         return {"reply": f"Lo siento, ocurrió un error procesando tu solicitud: {str(e)}"}
 
 @app.post("/crear-cotizacion")
