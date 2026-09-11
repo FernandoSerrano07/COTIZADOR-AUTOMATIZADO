@@ -207,7 +207,7 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
         """
 
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-3.6-flash',
             contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}"
         )
 
@@ -327,7 +327,7 @@ def crear_cotizacion(
         
         orig_w = logo.imageWidth or 100
         orig_h = logo.imageHeight or 100
-        max_size = 40  
+        max_size =  40  
         
         if orig_w > orig_h:
             logo.drawWidth = max_size
