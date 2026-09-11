@@ -4,6 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
+from pydantic import BaseModel
+from google import genai
 from database import engine, get_db
 import models
 import os
@@ -35,6 +37,12 @@ pwd_context = CryptContext(
 
 CONFIG_FILE = "company_config.json"
 
+# Inicializar cliente de Google GenAI usando variables de entorno por seguridad
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6JJl9gneSxK6Mfe0tV3lFm8y6lv9OFPVlGdq1eXrsKPLA"))
+
+class ChatRequest(BaseModel):
+    message: str
+
 def get_company_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -55,7 +63,7 @@ def verify_password(plain_password, hashed_password):
 
 @app.get("/", response_class=HTMLResponse)
 def read_index(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"request": request})
+    return templates.TemplateResponse(request, "dashboard.html", {"request": request})
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
@@ -182,7 +190,31 @@ def listar_cotizaciones(
         "fecha": fecha or ""
     })
 
-# ------------------------------------
+# --- ENDPOINT DEL ASISTENTE VIRTUAL IA ---
+
+@app.post("/api/asistente")
+async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
+    try:
+        products = db.query(models.Product).all()
+        catalogo_info = "\n".join([f"- ID: {p.id}, Nombre: {p.name}, Precio: ${p.price}, Estado: {'Activo' if p.is_active else 'Congelado'}" for p in products])
+
+        prompt_sistema = f"""
+        Eres un asistente administrativo experto en un sistema de cotizaciones y redes de seguridad.
+        Aquí tienes el catálogo actual de productos registrados en la base de datos:
+        {catalogo_info}
+
+        Responde de forma clara, directa y servicial a las consultas del usuario sobre precios, búsqueda de artículos o control de inventario basados estrictamente en la información proporcionada.
+        """
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}"
+        )
+
+        return {"reply": response.text}
+    
+    except Exception as e:
+        return {"reply": f"Lo siento, ocurrió un error procesando tu solicitud: {str(e)}"}
 
 @app.post("/crear-cotizacion")
 def crear_cotizacion(
@@ -289,7 +321,6 @@ def crear_cotizacion(
         leading=12
     )
 
-    # 1. ENCABEZADO CON LOGOTIPO AJUSTADO Y PROPORCIONAL
     logo_path = os.path.join("uploads", "company_logo.png")
     if os.path.exists(logo_path):
         logo = RLImage(logo_path)
@@ -334,7 +365,6 @@ def crear_cotizacion(
     elements.append(header_table)
     elements.append(Spacer(1, 10))
 
-    # 2. BLOQUES DE CLIENTE Y DETALLES DE OFERTA
     cliente_info = f"<b>CLIENTE</b><br/><br/><b>Nombre:</b> {client_name}<br/><b>Teléfono:</b> {client_phone if client_phone else 'N/A'}<br/><b>Ubicación:</b> {client_address}"
     oferta_info = f"<b>DETALLES DE OFERTA</b><br/><br/><b>Fecha de Emisión:</b> {datetime.datetime.now().strftime('%d/%m/%Y')}<br/><b>Validez de Oferta:</b> {comp_config.get('validez_oferta', '5 días')}"
 
@@ -355,7 +385,6 @@ def crear_cotizacion(
     elements.append(info_table)
     elements.append(Spacer(1, 15))
 
-    # 3. TABLA DE PRODUCTOS / SERVICIOS
     table_data = [["CANT.", "DESCRIPCIÓN DEL PRODUCTO / SERVICIO", "P. UNITARIO", "TOTAL"]]
     for item in items_data:
         desc_text = f"<b>{item['name']}</b>"
@@ -384,7 +413,6 @@ def crear_cotizacion(
     ]))
     elements.append(t)
 
-    # 4. TOTALES
     totales_data = [
         ["", "", "Subtotal:", f"${subtotal_general:.2f}"]
     ]
@@ -407,7 +435,6 @@ def crear_cotizacion(
     elements.append(t_totales)
     elements.append(Spacer(1, 20))
 
-    # 5. TÉRMINOS, CONDICIONES Y GARANTÍAS
     cond_pago = comp_config.get('condiciones_pago', '')
     validez = comp_config.get('validez_oferta', '')
     garantias = comp_config.get('garantias_texto', '')
