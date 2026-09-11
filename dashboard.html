@@ -386,8 +386,34 @@
 					body: JSON.stringify({ message: text })
 				});
 				const data = await response.json();
+				
+				// Mostramos la respuesta de texto del asistente
 				messagesContainer.innerHTML += `<div class="chat-msg assistant">${data.reply}</div>`;
 				messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+				// Si el backend devolvió la orden de agregar el producto, lo aplicamos en la interfaz
+				if (data.action === "add_product") {
+					// Verificamos si la primera fila está libre o si debemos crear una nueva
+					const firstSelect = document.querySelector('.product-select');
+					const firstQty = document.querySelector('.product-qty');
+
+					if (firstSelect && firstSelect.value === "") {
+						// Si la primera fila está vacía, la usamos directamente
+						firstSelect.value = data.product_id;
+						firstQty.value = data.quantity;
+					} else {
+						// Si ya está ocupada, añadimos una fila nueva automáticamente
+						addProductRow();
+						const rows = document.querySelectorAll('.product-row');
+						const lastRow = rows[rows.length - 1];
+						lastRow.querySelector('.product-select').value = data.product_id;
+						lastRow.querySelector('.product-qty').value = data.quantity;
+					}
+					
+					// Recalculamos los totales del formulario al instante
+					calculateTotals();
+				}
+
 			} catch (err) {
 				messagesContainer.innerHTML += `<div class="chat-msg assistant">Error de conexión con el asistente.</div>`;
 			}
