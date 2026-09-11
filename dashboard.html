@@ -1,22 +1,131 @@
 <!DOCTYPE HTML>
 <html>
 
+
 <head>
 	<title>Dashboard - Seguridad Y Redes</title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
 	<link rel="stylesheet" href="assets/css/main.css" />
+	<style>
+		/* Estilos para el Widget de Chat Flotante del Asistente */
+		#chat-widget-container {
+			position: fixed;
+			bottom: 20px;
+			right: 20px;
+			z-index: 9999;
+			font-family: Arial, sans-serif;
+		}
+		#chat-toggle-btn {
+			background-color: #2e3842;
+			color: white;
+			border: none;
+			border-radius: 50px;
+			padding: 12px 20px;
+			font-size: 15px;
+			cursor: pointer;
+			box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			font-weight: bold;
+		}
+		#chat-toggle-btn:hover {
+			background-color: #1e252c;
+		}
+		#chat-box {
+			display: none;
+			width: 350px;
+			height: 450px;
+			background: white;
+			border-radius: 10px;
+			box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+			display: none;
+			flex-direction: column;
+			overflow: hidden;
+			border: 1px solid #ddd;
+			margin-bottom: 10px;
+		}
+		#chat-header {
+			background: #2e3842;
+			color: white;
+			padding: 12px;
+			font-weight: bold;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+		#chat-close {
+			background: none;
+			border: none;
+			color: white;
+			font-size: 18px;
+			cursor: pointer;
+		}
+		#chat-messages {
+			flex: 1;
+			padding: 15px;
+			overflow-y: auto;
+			background: #f9f9f9;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+		}
+		.chat-msg {
+			padding: 8px 12px;
+			border-radius: 8px;
+			max-width: 80%;
+			font-size: 0.9em;
+			line-height: 1.4;
+		}
+		.chat-msg.user {
+			background: #007bff;
+			color: white;
+			align-self: flex-end;
+		}
+		.chat-msg.assistant {
+			background: #e2e8f0;
+			color: #333;
+			align-self: flex-start;
+		}
+		#chat-input-area {
+			display: flex;
+			padding: 10px;
+			background: white;
+			border-top: 1px solid #ddd;
+		}
+		#chat-input {
+			flex: 1;
+			padding: 8px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			outline: none;
+		}
+		#chat-send-btn {
+			background: #007bff;
+			color: white;
+			border: none;
+			padding: 8px 15px;
+			margin-left: 5px;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+	</style>
 </head>
 
+
 <body class="is-preload">
+
 
 	<div id="wrapper">
 		<div id="main">
 			<div class="inner">
 
+
 				<header id="header">
 					<a href="/dashboard" class="logo"><strong>Panel de Control</strong> | Seguridad y Redes</a>
 				</header>
+
 
 				<!-- Sección Única: Generador de Cotizaciones -->
 				<section>
@@ -24,7 +133,9 @@
 						<h2>Generador de Cotizaciones</h2>
 					</header>
 
+
 					<form action="/crear-cotizacion" method="POST" id="quotation-form">
+
 
 						<h3>Datos del Cliente</h3>
 						<div class="fields">
@@ -49,7 +160,9 @@
 							</div>
 						</div>
 
+
 						<hr style="margin: 30px 0;" />
+
 
 						<h3>Productos de la Cotización</h3>
 						<div id="products-container">
@@ -77,12 +190,15 @@
 							</div>
 						</div>
 
+
 						<ul class="actions" style="margin-top: 15px;">
 							<li><button type="button" class="button" onclick="addProductRow()">+ Agregar otro
 									producto</button></li>
 						</ul>
 
+
 						<hr style="margin: 30px 0;" />
+
 
 						<h3>Opciones de Pago y Totales</h3>
 						<div class="field" style="margin-bottom: 20px;">
@@ -91,6 +207,7 @@
 							<label for="apply_iva" style="display: inline; cursor: pointer;"><strong>Aplicar IVA
 									(13%)</strong></label>
 						</div>
+
 
 						<div
 							style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 25px; border: 1px solid #ddd;">
@@ -102,14 +219,17 @@
 										id="lbl-total">0.00</span></strong></p>
 						</div>
 
+
 						<ul class="actions" style="margin-top: 30px;">
 							<li><input type="submit" value="Generar y Guardar Cotización PDF" class="primary" /></li>
 						</ul>
 					</form>
 				</section>
 
+
 			</div>
 		</div>
+
 
 		<div id="sidebar">
 			<div class="inner">
@@ -118,6 +238,7 @@
 						<h2>Menú</h2>
 					</header>
 					<ul>
+						<li><a href="/">Página Principal</a></li>
 						<li><a href="/dashboard">Generador de Cotizaciones</a></li>
 						<li><a href="/productos">Gestión de Productos</a></li>
 						<li><a href="/cotizaciones">ver Cotizaciones</a></li>
@@ -132,15 +253,37 @@
 		</div>
 	</div>
 
+
+	<!-- Widget de Chat Flotante del Asistente -->
+	<div id="chat-widget-container">
+		<div id="chat-box">
+			<div id="chat-header">
+				<span>Asistente Virtual</span>
+				<button id="chat-close" onclick="toggleChat()">&times;</button>
+			</div>
+			<div id="chat-messages">
+				<div class="chat-msg assistant">¡Hola! Soy tu asistente de inventario y cotizaciones. ¿En qué te puedo ayudar hoy?</div>
+			</div>
+			<div id="chat-input-area">
+				<input type="text" id="chat-input" placeholder="Escribe tu consulta u orden..." onkeypress="handleKeyPress(event)" />
+				<button id="chat-send-btn" onclick="sendMessage()">Enviar</button>
+			</div>
+		</div>
+		<button id="chat-toggle-btn" onclick="toggleChat()">💬 Asistente IA</button>
+	</div>
+
+
 	<script src="assets/js/jquery.min.js"></script>
 	<script src="assets/js/browser.min.js"></script>
 	<script src="assets/js/breakpoints.min.js"></script>
 	<script src="assets/js/util.js"></script>
 	<script src="assets/js/main.js"></script>
 
+
 	<script>
 		const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
 		document.getElementById('display_date').value = new Date().toLocaleDateString('es-SV', options);
+
 
 		function addProductRow() {
 			const container = document.getElementById('products-container');
@@ -153,6 +296,7 @@
 			calculateTotals();
 		}
 
+
 		function removeRow(button) {
 			const rows = document.querySelectorAll('.product-row');
 			if (rows.length > 1) {
@@ -163,6 +307,7 @@
 			}
 		}
 
+
 		function calculateTotals() {
 			let subtotal = 0;
 			document.querySelectorAll('.product-row').forEach(row => {
@@ -170,12 +315,14 @@
 				const qtyInput = row.querySelector('.product-qty');
 				const selectedOption = select.options[select.selectedIndex];
 
+
 				if (selectedOption && selectedOption.dataset.price) {
 					const price = parseFloat(selectedOption.dataset.price);
 					const qty = parseInt(qtyInput.value) || 0;
 					subtotal += price * qty;
 				}
 			});
+
 
 			const applyIva = document.getElementById('apply_iva').checked;
 			let iva = 0;
@@ -186,21 +333,67 @@
 				document.getElementById('iva-container').style.display = 'none';
 			}
 
+
 			const total = subtotal + iva;
+
 
 			document.getElementById('lbl-subtotal').innerText = subtotal.toFixed(2);
 			document.getElementById('lbl-iva').innerText = iva.toFixed(2);
 			document.getElementById('lbl-total').innerText = total.toFixed(2);
 		}
 
+
 		function attachEvents(row) {
 			row.querySelector('.product-select').addEventListener('change', calculateTotals);
 			row.querySelector('.product-qty').addEventListener('input', calculateTotals);
 		}
 
+
 		document.querySelectorAll('.product-row').forEach(row => attachEvents(row));
 		document.getElementById('apply_iva').addEventListener('change', calculateTotals);
+
+
+		// Funciones del Chat Bot
+		function toggleChat() {
+			const box = document.getElementById('chat-box');
+			box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+		}
+
+
+		function handleKeyPress(e) {
+			if (e.key === 'Enter') {
+				sendMessage();
+			}
+		}
+
+
+		async function sendMessage() {
+			const input = document.getElementById('chat-input');
+			const text = input.value.trim();
+			if (!text) return;
+
+
+			const messagesContainer = document.getElementById('chat-messages');
+			messagesContainer.innerHTML += `<div class="chat-msg user">${text}</div>`;
+			input.value = '';
+			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+
+			try {
+				const response = await fetch('/api/asistente', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ message: text })
+				});
+				const data = await response.json();
+				messagesContainer.innerHTML += `<div class="chat-msg assistant">${data.reply}</div>`;
+				messagesContainer.scrollTop = messagesContainer.scrollHeight;
+			} catch (err) {
+				messagesContainer.innerHTML += `<div class="chat-msg assistant">Error de conexión con el asistente.</div>`;
+			}
+		}
 	</script>
 </body>
+
 
 </html>
