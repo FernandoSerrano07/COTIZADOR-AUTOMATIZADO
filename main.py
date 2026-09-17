@@ -1,35 +1,48 @@
+import os
+import shutil
+import json
+import time
+import datetime
+from typing import List, Optional
+
 from fastapi import FastAPI, Depends, HTTPException, status, Form, Request, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel
+
+# SDK Oficial de Google GenAI
 from google import genai
 from google.genai import types
+
+# Modulos locales de Base de Datos
 from database import engine, get_db
 import models
-import os
-import shutil
-import json
-import time
+
+# Importaciones de ReportLab para la generación del PDF
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-import datetime
 
+# Inicialización de tablas en la base de datos
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(title="Sistema de Cotizaciones e Inteligencia de Voz")
 
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+# Directorios de archivos estáticos y descargas
+os.makedirs("assets", exist_ok=True)
 os.makedirs("pdf_files", exist_ok=True)
 os.makedirs("uploads", exist_ok=True)
+
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 app.mount("/pdf_files", StaticFiles(directory="pdf_files"), name="pdf_files")
 
 templates = Jinja2Templates(directory=".")
 
+# Configuración del contexto de encriptación de contraseñas
 pwd_context = CryptContext(
     schemes=["bcrypt"], 
     deprecated="auto",
@@ -39,8 +52,9 @@ pwd_context = CryptContext(
 
 CONFIG_FILE = "company_config.json"
 
-# Inicializar cliente de Google GenAI usando variables de entorno por seguridad
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6JJl9gneSxK6Mfe0tV3lFm8y6lv9OFPVlGdq1eXrsKPLA"))
+# Cliente de Google GenAI inicializado desde variable de entorno
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 class ChatRequest(BaseModel):
     message: str
@@ -63,6 +77,8 @@ def get_company_config():
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+# --- RUTAS PRINCIPALES Y AUTENTICACIÓN ---
+
 @app.get("/", response_class=HTMLResponse)
 def read_index(request: Request):
     return templates.TemplateResponse(request, "dashboard.html", {"request": request})
@@ -82,6 +98,8 @@ def login(username: str = Form(...), password: str = Form(...), db: Session = De
 def dashboard_page(request: Request, db: Session = Depends(get_db)):
     products = db.query(models.Product).filter(models.Product.is_active == True).all()
     return templates.TemplateResponse(request, "dashboard.html", {"request": request, "products": products})
+
+# --- CONFIGURACIÓN DE EMPRESA ---
 
 @app.get("/configuracion", response_class=HTMLResponse)
 def configuracion_page(request: Request):
@@ -194,23 +212,34 @@ def listar_cotizaciones(
 
 # --- ASISTENTE VIRTUAL IA CON FUNCTION CALLING ---
 
-def agregar_producto_cotizacion(product_id: int, quantity: int):
-    """Agrega un producto del catálogo a la cotización activa seleccionando su ID y cantidad."""
+def agregar_producto_cotizacion(product_id: int, quantity: int = 1):
+    """
+    Agrega un producto del catálogo a la cotización activa seleccionando su ID numérico y cantidad.
+    """
     return {"product_id": product_id, "quantity": quantity}
 
 @app.post("/api/asistente")
 async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
+    if not client:
+        return JSONResponse(
+            status_code=500,
+            content={"reply": "Error: La API Key de Gemini no está configurada en el servidor (GEMINI_API_KEY)."}
+        )
+
     try:
         products = db.query(models.Product).all()
-        catalogo_info = "\n".join([f"- ID: {p.id}, Nombre: {p.name}, Precio: ${p.price}, Estado: {'Activo' if p.is_active else 'Congelado'}" for p in products])
+        catalogo_info = "\n".join([f"- ID: {p.id}, Nombre: {p.name}, Precio: ${p.price:.2f}, Estado: {'Activo' if p.is_active else 'Inactivo'}" for p in products])
 
         prompt_sistema = f"""
-        Eres un asistente administrativo experto en un sistema de cotizaciones y redes de seguridad.
+        Eres un asistente administrativo experto en un sistema de cotizaciones, seguridad electrónica y redes.
         Aquí tienes el catálogo actual de productos registrados en la base de datos:
         {catalogo_info}
 
-        Si el usuario te pide agregar, incluir o sumar un producto a la cotización, DEBES utilizar obligatoriamente la herramienta 'agregar_producto_cotizacion' pasando el ID correcto del producto y la cantidad solicitada (si no especifica cantidad, asume 1).
-        Si solo pregunta precios o información, responde amablemente con texto.
+        REGLAS DE OPERACIÓN:
+        1. Si el usuario te pide agregar, incluir o sumar un producto a la cotización, DEBES utilizar obligatoriamente la herramienta 'agregar_producto_cotizacion' pasando el ID correcto del producto y la cantidad solicitada.
+        2. Convierte cantidades escritas en palabras (ej. "dos", "tres", "un par") a sus valores enteros numéricos (2, 3, 2).
+        3. Si no se especifica la cantidad, asume por defecto 1.
+        4. Si solo realiza preguntas informativas o sobre precios, responde amablemente de forma concisa.
         """
 
         max_intentos = 2
@@ -218,8 +247,8 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
         for intento in range(max_intentos):
             try:
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=f"{prompt_sistema}\n\nPregunta del usuario: {req.message}",
+                    model='gemini-2.5-flash',
+                    contents=f"{prompt_sistema}\n\nEntrada del usuario: {req.message}",
                     config=types.GenerateContentConfig(
                         tools=[agregar_producto_cotizacion],
                         temperature=0.0
@@ -227,18 +256,17 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
                 )
                 break
             except Exception as api_err:
-                if "503" in str(api_err) and intento < max_intentos - 1:
+                if ("503" in str(api_err) or "UNAVAILABLE" in str(api_err)) and intento < max_intentos - 1:
                     time.sleep(1)
                     continue
                 raise api_err
 
-        # Verificamos si la IA ejecutó la función de agregar producto
-        if response.function_calls:
+        if response and response.function_calls:
             for function_call in response.function_calls:
                 if function_call.name == "agregar_producto_cotizacion":
                     args = function_call.args
-                    p_id = args.get('product_id')
-                    qty = args.get('quantity', 1)
+                    p_id = int(args.get('product_id'))
+                    qty = int(args.get('quantity', 1))
                     
                     prod_obj = db.query(models.Product).filter(models.Product.id == p_id).first()
                     nombre_prod = prod_obj.name if prod_obj else f"ID {p_id}"
@@ -250,12 +278,14 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
                         "quantity": qty
                     }
 
-        return {"reply": response.text}
+        return {"reply": response.text if response else "No se obtuvo respuesta del asistente."}
     
     except Exception as e:
         if "503" in str(e) or "UNAVAILABLE" in str(e):
             return {"reply": "El asistente está experimentando alta demanda en este momento. Por favor, intenta de nuevo en unos segundos."}
         return {"reply": f"Lo siento, ocurrió un error procesando tu solicitud: {str(e)}"}
+
+# --- CREACIÓN DE COTIZACIÓN Y GENERACIÓN DE PDF ---
 
 @app.post("/crear-cotizacion")
 def crear_cotizacion(
@@ -290,6 +320,7 @@ def crear_cotizacion(
     comp_config = get_company_config()
     current_cot_num = comp_config.get("next_cotizacion_num", "COT-2026-001")
     
+    # Actualizar correlativo de cotización
     try:
         parts = current_cot_num.rsplit("-", 1)
         if len(parts) == 2 and parts[1].isdigit():
@@ -320,13 +351,14 @@ def crear_cotizacion(
         prod_obj = db.query(models.Product).filter(models.Product.name == item["name"]).first()
         nuevo_item = models.QuotationItem(
             quotation_id=nueva_cotizacion.id,
-            product_id=prod_obj.id,
+            product_id=prod_obj.id if prod_obj else 0,
             quantity=item["quantity"],
             subtotal=item["subtotal"]
         )
         db.add(nuevo_item)
     db.commit()
 
+    # Construcción del documento PDF
     pdf_dir = "pdf_files"
     filename = f"cotizacion_{nueva_cotizacion.id}_{client_name.replace(' ', '_')}.pdf"
     filepath = os.path.join(pdf_dir, filename)
@@ -365,10 +397,9 @@ def crear_cotizacion(
     logo_path = os.path.join("uploads", "company_logo.png")
     if os.path.exists(logo_path):
         logo = RLImage(logo_path)
-        
         orig_w = logo.imageWidth or 100
         orig_h = logo.imageHeight or 100
-        max_size =  40  
+        max_size = 40  
         
         if orig_w > orig_h:
             logo.drawWidth = max_size
@@ -508,3 +539,7 @@ def crear_cotizacion(
     db.commit()
 
     return FileResponse(filepath, media_type='application/pdf', filename=filename)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
