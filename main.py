@@ -305,7 +305,7 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
         for intento in range(max_intentos):
             try:
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.6-flash',
                     contents=f"{prompt_sistema}\n\nEntrada del usuario: {req.message}",
                     config=types.GenerateContentConfig(
                         tools=[agregar_producto_cotizacion],
