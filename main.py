@@ -52,9 +52,26 @@ pwd_context = CryptContext(
 
 CONFIG_FILE = "company_config.json"
 
-# Cliente de Google GenAI inicializado desde variable de entorno
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+# ---------------------------------------------------------------------------
+# GESTIÓN DEL CLIENTE GEMINI
+# Se busca la API Key en este orden:
+#   1. Variable de entorno GEMINI_API_KEY
+#   2. Campo "gemini_api_key" dentro de company_config.json
+# ---------------------------------------------------------------------------
+
+def get_gemini_client():
+    """Devuelve un cliente genai configurado o None si no hay API Key disponible."""
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+    if not api_key:
+        # Intentar obtenerla del archivo de configuración
+        config = get_company_config()
+        api_key = config.get("gemini_api_key", "").strip()
+
+    if api_key:
+        return genai.Client(api_key=api_key)
+    return None
+
 
 class ChatRequest(BaseModel):
     message: str
@@ -71,7 +88,8 @@ def get_company_config():
         "validez_oferta": "5 días hábiles",
         "condiciones_pago": "50% de anticipo al confirmar la orden y 50% contra entrega / recepción al finalizar el proyecto.",
         "instalacion_nota": "Incluye la puesta en marcha del sistema y la configuración en el teléfono móvil del cliente.",
-        "garantias_texto": "- Los equipos cuentan con 1 año de garantía. La garantía no cubre cables cortados ni equipos sucios por falta de mantenimiento."
+        "garantias_texto": "- Los equipos cuentan con 1 año de garantía. La garantía no cubre cables cortados ni equipos sucios por falta de mantenimiento.",
+        "gemini_api_key": ""
     }
 
 def verify_password(plain_password, hashed_password):
@@ -104,6 +122,13 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
 @app.get("/configuracion", response_class=HTMLResponse)
 def configuracion_page(request: Request):
     config = get_company_config()
+    # Enmascarar la API Key para no mostrarla completa en el HTML
+    api_key_raw = config.get("gemini_api_key", "")
+    config["gemini_api_key_masked"] = (
+        api_key_raw[:6] + "••••••••" + api_key_raw[-4:] if len(api_key_raw) > 10 else ("Configurada" if api_key_raw else "No configurada")
+    )
+    # Indicar si la key viene de variable de entorno (solo lectura en la UI)
+    config["gemini_key_from_env"] = bool(os.getenv("GEMINI_API_KEY", "").strip())
     return templates.TemplateResponse(request, "configuracion.html", {"request": request, "config": config})
 
 @app.post("/actualizar-empresa")
@@ -116,8 +141,13 @@ async def actualizar_empresa(
     condiciones_pago: str = Form(...),
     instalacion_nota: str = Form(...),
     garantias_texto: str = Form(...),
+    gemini_api_key: str = Form(""),
     company_logo: UploadFile = File(None)
 ):
+    # Leer config existente para no perder la key si el campo viene vacío
+    existing_config = get_company_config()
+    stored_key = existing_config.get("gemini_api_key", "")
+
     config = {
         "name": company_name,
         "phone": company_phone,
@@ -126,7 +156,9 @@ async def actualizar_empresa(
         "validez_oferta": validez_oferta,
         "condiciones_pago": condiciones_pago,
         "instalacion_nota": instalacion_nota,
-        "garantias_texto": garantias_texto
+        "garantias_texto": garantias_texto,
+        # Si se envió una key nueva la usamos; si viene vacía mantenemos la anterior
+        "gemini_api_key": gemini_api_key.strip() if gemini_api_key.strip() else stored_key
     }
     
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -140,6 +172,24 @@ async def actualizar_empresa(
             shutil.copyfileobj(company_logo.file, buffer)
             
     return RedirectResponse(url="/configuracion", status_code=303)
+
+
+# --- ENDPOINT: actualizar solo la API Key (útil para llamadas AJAX/fetch) ---
+@app.post("/api/configurar-gemini")
+async def configurar_gemini(request: Request):
+    """Permite guardar la GEMINI_API_KEY desde el frontend sin recargar toda la config."""
+    body = await request.json()
+    api_key = body.get("api_key", "").strip()
+    if not api_key:
+        return JSONResponse(status_code=400, content={"ok": False, "detail": "La API Key no puede estar vacía."})
+
+    config = get_company_config()
+    config["gemini_api_key"] = api_key
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=4)
+
+    return {"ok": True, "detail": "API Key de Gemini guardada correctamente."}
+
 
 # --- RUTAS DE GESTIÓN DE PRODUCTOS ---
 
@@ -220,10 +270,18 @@ def agregar_producto_cotizacion(product_id: int, quantity: int = 1):
 
 @app.post("/api/asistente")
 async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
+    # Obtener cliente de forma dinámica en cada request
+    client = get_gemini_client()
+
     if not client:
         return JSONResponse(
             status_code=500,
-            content={"reply": "Error: La API Key de Gemini no está configurada en el servidor (GEMINI_API_KEY)."}
+            content={
+                "reply": (
+                    "⚠️ El asistente IA no está disponible porque la API Key de Gemini no está configurada. "
+                    "Ve a Configuración y agrega tu GEMINI_API_KEY, o defínela como variable de entorno en el servidor."
+                )
+            }
         )
 
     try:
