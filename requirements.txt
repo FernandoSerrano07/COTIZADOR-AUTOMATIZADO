@@ -8,3 +8,7 @@ python-multipart
 passlib[bcrypt]
 bcrypt==4.3.0
 google-genai
+python-dotenv
+gtts  # Text-to-Speech
+pydub  # Procesamiento de audio
+SpeechRecognition  # Reconocimiento de voz (alternativa)
