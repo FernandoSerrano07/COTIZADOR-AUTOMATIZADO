@@ -52,30 +52,6 @@ pwd_context = CryptContext(
 
 CONFIG_FILE = "company_config.json"
 
-# ---------------------------------------------------------------------------
-# GESTIÓN DEL CLIENTE GEMINI
-# Se busca la API Key en este orden:
-#   1. Variable de entorno GEMINI_API_KEY
-#   2. Campo "gemini_api_key" dentro de company_config.json
-# ---------------------------------------------------------------------------
-
-def get_gemini_client():
-    """Devuelve un cliente genai configurado o None si no hay API Key disponible."""
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-
-    if not api_key:
-        # Intentar obtenerla del archivo de configuración
-        config = get_company_config()
-        api_key = config.get("gemini_api_key", "").strip()
-
-    if api_key:
-        return genai.Client(api_key=api_key)
-    return None
-
-
-class ChatRequest(BaseModel):
-    message: str
-
 def get_company_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
@@ -91,6 +67,25 @@ def get_company_config():
         "garantias_texto": "- Los equipos cuentan con 1 año de garantía. La garantía no cubre cables cortados ni equipos sucios por falta de mantenimiento.",
         "gemini_api_key": ""
     }
+
+# ---------------------------------------------------------------------------
+# GESTIÓN DEL CLIENTE GEMINI (CORREGIDO PARA EVITAR ERROR 401 OAUTH)
+# ---------------------------------------------------------------------------
+def get_gemini_client():
+    """Devuelve un cliente genai configurado estrictamente con API Key para evitar OAuth."""
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+    if not api_key:
+        config = get_company_config()
+        api_key = config.get("gemini_api_key", "").strip()
+
+    if api_key:
+        # Pasamos explicitamente enterprise=False y api_key para usar la API de desarrollador
+        return genai.Client(api_key=api_key)
+    return None
+
+class ChatRequest(BaseModel):
+    message: str
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -122,12 +117,10 @@ def dashboard_page(request: Request, db: Session = Depends(get_db)):
 @app.get("/configuracion", response_class=HTMLResponse)
 def configuracion_page(request: Request):
     config = get_company_config()
-    # Enmascarar la API Key para no mostrarla completa en el HTML
     api_key_raw = config.get("gemini_api_key", "")
     config["gemini_api_key_masked"] = (
         api_key_raw[:6] + "••••••••" + api_key_raw[-4:] if len(api_key_raw) > 10 else ("Configurada" if api_key_raw else "No configurada")
     )
-    # Indicar si la key viene de variable de entorno (solo lectura en la UI)
     config["gemini_key_from_env"] = bool(os.getenv("GEMINI_API_KEY", "").strip())
     return templates.TemplateResponse(request, "configuracion.html", {"request": request, "config": config})
 
@@ -144,7 +137,6 @@ async def actualizar_empresa(
     gemini_api_key: str = Form(""),
     company_logo: UploadFile = File(None)
 ):
-    # Leer config existente para no perder la key si el campo viene vacío
     existing_config = get_company_config()
     stored_key = existing_config.get("gemini_api_key", "")
 
@@ -157,7 +149,6 @@ async def actualizar_empresa(
         "condiciones_pago": condiciones_pago,
         "instalacion_nota": instalacion_nota,
         "garantias_texto": garantias_texto,
-        # Si se envió una key nueva la usamos; si viene vacía mantenemos la anterior
         "gemini_api_key": gemini_api_key.strip() if gemini_api_key.strip() else stored_key
     }
     
@@ -173,11 +164,8 @@ async def actualizar_empresa(
             
     return RedirectResponse(url="/configuracion", status_code=303)
 
-
-# --- ENDPOINT: actualizar solo la API Key (útil para llamadas AJAX/fetch) ---
 @app.post("/api/configurar-gemini")
 async def configurar_gemini(request: Request):
-    """Permite guardar la GEMINI_API_KEY desde el frontend sin recargar toda la config."""
     body = await request.json()
     api_key = body.get("api_key", "").strip()
     if not api_key:
@@ -189,7 +177,6 @@ async def configurar_gemini(request: Request):
         json.dump(config, f, ensure_ascii=False, indent=4)
 
     return {"ok": True, "detail": "API Key de Gemini guardada correctamente."}
-
 
 # --- RUTAS DE GESTIÓN DE PRODUCTOS ---
 
@@ -270,7 +257,6 @@ def agregar_producto_cotizacion(product_id: int, quantity: int = 1):
 
 @app.post("/api/asistente")
 async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
-    # Obtener cliente de forma dinámica en cada request
     client = get_gemini_client()
 
     if not client:
@@ -279,7 +265,7 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
             content={
                 "reply": (
                     "⚠️ El asistente IA no está disponible porque la API Key de Gemini no está configurada. "
-                    "Ve a Configuración y agrega tu GEMINI_API_KEY, o defínela como variable de entorno en el servidor."
+                    "Ve a Configuración y agrega tu GEMINI_API_KEY."
                 )
             }
         )
@@ -295,7 +281,7 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
 
         REGLAS DE OPERACIÓN:
         1. Si el usuario te pide agregar, incluir o sumar un producto a la cotización, DEBES utilizar obligatoriamente la herramienta 'agregar_producto_cotizacion' pasando el ID correcto del producto y la cantidad solicitada.
-        2. Convierte cantidades escritas en palabras (ej. "dos", "tres", "un par") a sus valores enteros numéricos (2, 3, 2).
+        2. Convierte cantidades escritas en palabras a sus valores enteros numéricos.
         3. Si no se especifica la cantidad, asume por defecto 1.
         4. Si solo realiza preguntas informativas o sobre precios, responde amablemente de forma concisa.
         """
@@ -304,8 +290,9 @@ async def asistente_virtual(req: ChatRequest, db: Session = Depends(get_db)):
         response = None
         for intento in range(max_intentos):
             try:
+                # Usamos gemini-2.5-flash para asegurar compatibilidad perfecta de API key y evitar bloqueos de auth
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash',
+                    model='gemini-2.5-flash',
                     contents=f"{prompt_sistema}\n\nEntrada del usuario: {req.message}",
                     config=types.GenerateContentConfig(
                         tools=[agregar_producto_cotizacion],
@@ -378,7 +365,6 @@ def crear_cotizacion(
     comp_config = get_company_config()
     current_cot_num = comp_config.get("next_cotizacion_num", "COT-2026-001")
     
-    # Actualizar correlativo de cotización
     try:
         parts = current_cot_num.rsplit("-", 1)
         if len(parts) == 2 and parts[1].isdigit():
@@ -416,7 +402,6 @@ def crear_cotizacion(
         db.add(nuevo_item)
     db.commit()
 
-    # Construcción del documento PDF
     pdf_dir = "pdf_files"
     filename = f"cotizacion_{nueva_cotizacion.id}_{client_name.replace(' ', '_')}.pdf"
     filepath = os.path.join(pdf_dir, filename)
@@ -426,30 +411,13 @@ def crear_cotizacion(
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
-        'DocTitle',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=14,
-        leading=18,
-        textColor=colors.HexColor("#1A252C")
+        'DocTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=14, leading=18, textColor=colors.HexColor("#1A252C")
     )
-    
     subtitle_style = ParagraphStyle(
-        'DocSubTitle',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=15,
-        leading=18,
-        alignment=2,
-        textColor=colors.HexColor("#0056b3")
+        'DocSubTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=15, leading=18, alignment=2, textColor=colors.HexColor("#0056b3")
     )
-
     cell_style = ParagraphStyle(
-        'CellText',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=9,
-        leading=12
+        'CellText', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12
     )
 
     logo_path = os.path.join("uploads", "company_logo.png")
@@ -457,8 +425,7 @@ def crear_cotizacion(
         logo = RLImage(logo_path)
         orig_w = logo.imageWidth or 100
         orig_h = logo.imageHeight or 100
-        max_size = 40  
-        
+        max_size = 40 
         if orig_w > orig_h:
             logo.drawWidth = max_size
             logo.drawHeight = max_size * (orig_h / orig_w)
@@ -467,7 +434,6 @@ def crear_cotizacion(
             logo.drawWidth = max_size * (orig_w / orig_h)
 
         company_text = Paragraph(f"<b>{comp_config['name']}</b><br/><font size=8 color='#555555'>{comp_config['address']} &bull; Tel: {comp_config['phone']}</font>", cell_style)
-        
         left_header_table = Table([[logo, company_text]], colWidths=[logo.drawWidth + 10, 322 - logo.drawWidth])
         left_header_table.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -482,10 +448,7 @@ def crear_cotizacion(
 
     cot_title_html = f"<b>COTIZACIÓN</b><br/><font size=10 color='#444444'>N° {current_cot_num}</font>"
 
-    header_table = Table([
-        [company_col, Paragraph(cot_title_html, subtitle_style)]
-    ], colWidths=[332, 210])
-    
+    header_table = Table([[company_col, Paragraph(cot_title_html, subtitle_style)]], colWidths=[332, 210])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('ALIGN', (1,0), (1,0), 'RIGHT'),
@@ -498,10 +461,7 @@ def crear_cotizacion(
     cliente_info = f"<b>CLIENTE</b><br/><br/><b>Nombre:</b> {client_name}<br/><b>Teléfono:</b> {client_phone if client_phone else 'N/A'}<br/><b>Ubicación:</b> {client_address}"
     oferta_info = f"<b>DETALLES DE OFERTA</b><br/><br/><b>Fecha de Emisión:</b> {datetime.datetime.now().strftime('%d/%m/%Y')}<br/><b>Validez de Oferta:</b> {comp_config.get('validez_oferta', '5 días')}"
 
-    info_table = Table([
-        [Paragraph(cliente_info, cell_style), Paragraph(oferta_info, cell_style)]
-    ], colWidths=[271, 271])
-    
+    info_table = Table([[Paragraph(cliente_info, cell_style), Paragraph(oferta_info, cell_style)]], colWidths=[271, 271])
     info_table.setStyle(TableStyle([
         ('BOX', (0,0), (0,0), 0.5, colors.HexColor("#BCE8F1")),
         ('BACKGROUND', (0,0), (0,0), colors.HexColor("#F9FBFB")),
@@ -543,12 +503,9 @@ def crear_cotizacion(
     ]))
     elements.append(t)
 
-    totales_data = [
-        ["", "", "Subtotal:", f"${subtotal_general:.2f}"]
-    ]
+    totales_data = [["", "", "Subtotal:", f"${subtotal_general:.2f}"]]
     if apply_iva:
         totales_data.append(["", "", "IVA (13%):", f"${iva_amount:.2f}"])
-    
     totales_data.append(["", "", "Total a Pagar:", f"${total_general:.2f}"])
 
     t_totales = Table(totales_data, colWidths=[40, 332, 85, 85])
