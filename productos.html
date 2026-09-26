@@ -134,7 +134,7 @@
 									<tr class="product-row {% if not p.is_active %}congelado{% endif %}">
 										<td data-label="ID">{{ p.id }}</td>
 										<td data-label="Detalles del Producto">
-											<!-- Formulario integrado en la fila para editar al instante -->
+											<!-- Formulario integrado en la fila para editar al instante. -->
 											<form action="/productos/editar/{{ p.id }}" method="POST" style="margin: 0;">
 												<div class="fields product-edit-fields" style="display: flex; gap: 10px; align-items: center;">
 													<div style="flex: 2;">
