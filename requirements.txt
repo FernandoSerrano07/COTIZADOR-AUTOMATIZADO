@@ -7,9 +7,10 @@ reportlab
 python-multipart
 passlib[bcrypt]
 bcrypt==4.3.0
-google-genai
+google-genai>=1.0.0
 python-dotenv
 gtts  # Text-to-Speech
 pydub  # Procesamiento de audio
 SpeechRecognition  # Reconocimiento de voz (alternativa)
 psycopg[binary]
+
