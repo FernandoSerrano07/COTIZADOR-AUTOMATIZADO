@@ -12,3 +12,4 @@ python-dotenv
 gtts  # Text-to-Speech
 pydub  # Procesamiento de audio
 SpeechRecognition  # Reconocimiento de voz (alternativa)
+psycopg
